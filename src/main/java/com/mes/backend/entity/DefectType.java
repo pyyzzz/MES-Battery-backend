@@ -7,15 +7,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,38 +20,41 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "bom")
+@Table(name = "defect_type")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Bom {
+public class DefectType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "bom_id")
+    @Column(name = "defect_type_id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", unique = true)
-    private Product product;
+    @Column(name = "defect_code", unique = true, nullable = false)
+    private String defectCode;
+
+    @Column(name = "defect_name")
+    private String defectName;
+
+    @Column(name = "is_active")
+    private Boolean active;
 
     @Builder.Default
     @JsonIgnore
-    @OneToMany(mappedBy = "bom")
-    private List<BomItem> bomItems = new ArrayList<>();
+    @OneToMany(mappedBy = "defectType")
+    private List<QualityInspection> qualityInspections = new ArrayList<>();
 
     @Builder.Default
     @JsonIgnore
-    @OneToMany(mappedBy = "bom")
-    private List<WorkOrder> workOrders = new ArrayList<>();
+    @OneToMany(mappedBy = "defectType")
+    private List<MeasurementSpec> measurementSpecs = new ArrayList<>();
 
-    @Transient
-    private String productCode;
-
-    @Transient
-    private Material material;
-
-    @Transient
-    private int requiredQty;
+    @PrePersist
+    public void prePersist() {
+        if (active == null) {
+            active = true;
+        }
+    }
 }

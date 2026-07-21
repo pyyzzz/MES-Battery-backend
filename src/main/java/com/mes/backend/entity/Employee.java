@@ -1,7 +1,6 @@
 package com.mes.backend.entity;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,60 +21,55 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "material")
+@Table(name = "employee")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Material {
+public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "material_id")
+    @Column(name = "employee_id")
     private Long id;
 
-    @Column(name = "material_code", unique = true)
-    private String materialCode;
+    @Column(name = "employee_no", unique = true, nullable = false)
+    private String employeeNo;
 
-    @Column(name = "material_name")
-    private String materialName;
+    @Column(name = "employee_name")
+    private String employeeName;
 
-    @Column(name = "unit")
-    private String unit;
-
-    @Column(name = "safety_stock", precision = 19, scale = 3)
-    private BigDecimal safetyStock;
+    @Column(name = "role")
+    private String role;
 
     @Column(name = "is_active")
     private Boolean active;
 
-    @Column(name = "registered_at")
-    private LocalDateTime registeredAt;
+    @Column(name = "hire_date")
+    private LocalDate hireDate;
 
     @Builder.Default
     @JsonIgnore
-    @OneToMany(mappedBy = "material")
-    private List<MaterialLot> materialLots = new ArrayList<>();
+    @OneToMany(mappedBy = "employee")
+    private List<MaterialTransaction> materialTransactions = new ArrayList<>();
 
     @Builder.Default
     @JsonIgnore
-    @OneToMany(mappedBy = "material")
-    private List<BomItem> bomItems = new ArrayList<>();
+    @OneToMany(mappedBy = "managerEmployee")
+    private List<WorkOrder> managedWorkOrders = new ArrayList<>();
 
-    @Transient
-    private String code;
+    @Builder.Default
+    @JsonIgnore
+    @OneToMany(mappedBy = "managerEmployee")
+    private List<Process> processes = new ArrayList<>();
 
-    @Transient
-    private String name;
-
-    @Transient
-    private int currentStock;
+    @Builder.Default
+    @JsonIgnore
+    @OneToMany(mappedBy = "inspectorEmployee")
+    private List<QualityInspection> qualityInspections = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
-        if (registeredAt == null) {
-            registeredAt = LocalDateTime.now();
-        }
         if (active == null) {
             active = true;
         }
