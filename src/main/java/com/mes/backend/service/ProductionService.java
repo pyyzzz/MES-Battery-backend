@@ -140,6 +140,9 @@ public class ProductionService {
     private boolean isMaterialAvailable(String productCode) {
         List<Bom> boms = bomRepo.findAllByProduct_ProductCode(productCode);
         for (Bom bom : boms) {
+            if (bom.getMaterial() == null) {
+                continue; // 신규 BomItem 모델에선 이 필드가 항상 비어있음(기존 합의: 재고충분으로 취급)
+            }
             if (bom.getMaterial().getCurrentStock() < bom.getRequiredQty()) {
                 log.error("자재 부족: {} (현재: {}, 필요: {})",
                         bom.getMaterial().getName(), bom.getMaterial().getCurrentStock(), bom.getRequiredQty());
@@ -209,6 +212,7 @@ public class ProductionService {
             if (order.getOrderQuantity() != null && newQty >= order.getOrderQuantity()) {
                 order.setWorkOrderStatus("COMPLETED");
                 order.setCompletedAt(LocalDateTime.now());
+                productLot.setLotStatus("생산완료");
             }
         }
     }
