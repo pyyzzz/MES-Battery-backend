@@ -52,7 +52,7 @@ public class QualityInspection {
     private DefectType defectType;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inspector_employee_id")
+    @JoinColumn(name = "inspector_employee_id", nullable = false)
     private Employee inspectorEmployee;
 
     @Column(name = "inspection_result")

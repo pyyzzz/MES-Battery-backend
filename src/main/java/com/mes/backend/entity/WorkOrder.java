@@ -40,7 +40,7 @@ public class WorkOrder {
     private Bom bom;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_employee_id")
+    @JoinColumn(name = "manager_employee_id", nullable = false)
     private Employee managerEmployee;
 
     @Column(name = "work_order_no", unique = true)
