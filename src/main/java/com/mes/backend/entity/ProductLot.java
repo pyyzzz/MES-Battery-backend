@@ -43,8 +43,9 @@ public class ProductLot {
     @Column(name = "product_lot_no", unique = true, nullable = false)
     private String productLotNo;
 
+    @Builder.Default
     @Column(name = "current_qty")
-    private Integer currentQty;
+    private Integer currentQty = 0;
 
     @Column(name = "lot_status")
     private String lotStatus;
