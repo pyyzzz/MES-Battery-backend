@@ -9,6 +9,6 @@ import com.mes.backend.entity.WorkOrder;
 
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     List<WorkOrder> findAllByOrderByIdDesc();
-    Optional<WorkOrder> findFirstByStatusOrderByIdAsc(String status);
-    Optional<WorkOrder> findByStatusAndAssignedMachineId(String status, String machineId);
+    Optional<WorkOrder> findFirstByWorkOrderStatus(String workOrderStatus);
+    Optional<WorkOrder> findFirstByWorkOrderStatusOrderByIdAsc(String workOrderStatus);
 }

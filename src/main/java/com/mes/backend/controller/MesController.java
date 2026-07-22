@@ -11,8 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mes.backend.dto.MaterialInboundDto;
-import com.mes.backend.dto.ProductionReportRequest;
-import com.mes.backend.dto.RecentLogDto;
+import com.mes.backend.dto.ProductionReportDto;
 import com.mes.backend.dto.WorkOrderCreateRequest;
 import com.mes.backend.entity.Material;
 import com.mes.backend.entity.WorkOrder;
@@ -55,15 +54,8 @@ public class MesController {
     }
 
     @PostMapping("/machine/report")
-    public ResponseEntity<Void> reportProduction(@RequestBody ProductionReportRequest request) {
-        productionService.reportProduction(
-                request.getOrderId(), request.getMachineId(),
-                request.getResult(), request.getDefectCode(), request.getSerialNo());
+    public ResponseEntity<Void> reportProduction(@RequestBody ProductionReportDto request) {
+        productionService.reportProduction(request);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/production/recent-logs")
-    public List<RecentLogDto> getRecentLogs() {
-        return productionService.getRecentLogs();
     }
 }

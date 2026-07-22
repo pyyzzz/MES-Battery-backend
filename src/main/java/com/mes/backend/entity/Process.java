@@ -38,6 +38,9 @@ public class Process {
     @Column(name = "process_code", unique = true, nullable = false)
     private String processCode;
 
+    @Column(name = "process_type", unique = true)
+    private Integer processType;
+
     @Column(name = "process_name")
     private String processName;
 
