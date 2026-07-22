@@ -48,6 +48,12 @@ public class Employee {
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
+    @Column(name = "username", unique = true, nullable = false)
+    private String username;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
     @Builder.Default
     @JsonIgnore
     @OneToMany(mappedBy = "employee")

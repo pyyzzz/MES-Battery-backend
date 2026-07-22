@@ -1,4 +1,4 @@
-// Member 기반 UserDetailsService 구현체
+// Employee 기반 UserDetailsService 구현체
 package com.mes.backend.config;
 
 import org.springframework.security.core.userdetails.User;
@@ -7,8 +7,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.mes.backend.entity.Member;
-import com.mes.backend.repository.MemberRepository;
+import com.mes.backend.entity.Employee;
+import com.mes.backend.repository.EmployeeRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,15 +16,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final MemberRepository memberRepository;
+    private final EmployeeRepository employeeRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Member member = memberRepository.findByUsername(username)
+        Employee employee = employeeRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("존재하지 않는 계정입니다: " + username));
         return User.builder()
-                .username(member.getUsername())
-                .password(member.getPassword())
+                .username(employee.getUsername())
+                .password(employee.getPassword())
                 .authorities("USER")
                 .build();
     }

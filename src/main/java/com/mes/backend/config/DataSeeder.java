@@ -5,8 +5,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import com.mes.backend.entity.Member;
-import com.mes.backend.repository.MemberRepository;
+import com.mes.backend.entity.Employee;
+import com.mes.backend.repository.EmployeeRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,13 +14,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
 
-    private final MemberRepository memberRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
-        if (memberRepository.findByUsername("admin").isEmpty()) {
-            memberRepository.save(Member.builder()
+        if (employeeRepository.findByUsername("admin").isEmpty()) {
+            employeeRepository.save(Employee.builder()
+                    .employeeNo("ADMIN")
+                    .employeeName("관리자")
                     .username("admin")
                     .password(passwordEncoder.encode("1234"))
                     .build());
