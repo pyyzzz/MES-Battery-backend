@@ -8,5 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.mes.backend.entity.Process;
 
 public interface ProcessRepository extends JpaRepository<Process, Long> {
+    Optional<Process> findByProcessCode(String processCode);
     Optional<Process> findByProcessType(Integer processType);
 }
