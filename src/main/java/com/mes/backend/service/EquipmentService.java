@@ -12,6 +12,7 @@ import com.mes.backend.dto.EquipmentCreateRequest;
 import com.mes.backend.dto.EquipmentUpdateRequest;
 import com.mes.backend.entity.Equipment;
 import com.mes.backend.entity.Process;
+import com.mes.backend.exception.CustomException;
 import com.mes.backend.repository.EquipmentRepository;
 import com.mes.backend.repository.ProcessRepository;
 
@@ -70,7 +71,7 @@ public class EquipmentService {
     private void ensureProcessAvailable(Process process, Long currentEquipmentId) {
         Optional<Equipment> occupied = equipmentRepo.findByProcess_Id(process.getId());
         if (occupied.isPresent() && !occupied.get().getId().equals(currentEquipmentId)) {
-            throw new RuntimeException("이미 다른 설비가 배정된 공정입니다: " + process.getProcessCode());
+            throw new CustomException("PROCESS_OCCUPIED", "이미 다른 설비가 배정된 공정입니다: " + process.getProcessCode());
         }
     }
 }
