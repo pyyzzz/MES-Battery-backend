@@ -4,6 +4,7 @@ package com.mes.backend.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class EquipmentService {
                 .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다. ID: " + id));
     }
 
+    @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Equipment create(EquipmentCreateRequest request) {
         Process process = findProcess(request.getProcessId());
@@ -46,6 +48,7 @@ public class EquipmentService {
     }
 
     /* equipment_code는 잠금 - 여기서 건드리지 않음 */
+    @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Equipment update(Long id, EquipmentUpdateRequest request) {
         Equipment equipment = getById(id);

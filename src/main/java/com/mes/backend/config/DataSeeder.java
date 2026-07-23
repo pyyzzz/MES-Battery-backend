@@ -40,14 +40,19 @@ public class DataSeeder implements CommandLineRunner {
         seedMeasurementSpecs();
     }
 
+    /* 이미 존재하는 admin row에 role 등 필드가 누락돼 있으면 재기동 시 자동으로 채워준다(자가치유) */
     private Employee seedAdmin() {
-        return employeeRepository.findByUsername("admin")
-                .orElseGet(() -> employeeRepository.save(Employee.builder()
+        Employee admin = employeeRepository.findByUsername("admin")
+                .orElseGet(() -> Employee.builder()
                         .employeeNo("ADMIN")
                         .employeeName("관리자")
                         .username("admin")
                         .password(passwordEncoder.encode("1234"))
-                        .build()));
+                        .build());
+        if (admin.getRole() == null) {
+            admin.setRole("관리자");
+        }
+        return employeeRepository.save(admin);
     }
 
     /* 담당자 마스터(Worker)가 아직 없어 PROCESS.managerEmployee는 임시로 admin 계정을 지정 */

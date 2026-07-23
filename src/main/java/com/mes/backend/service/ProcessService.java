@@ -3,6 +3,7 @@ package com.mes.backend.service;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class ProcessService {
                 .orElseThrow(() -> new RuntimeException("공정을 찾을 수 없습니다. ID: " + id));
     }
 
+    @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Process create(ProcessCreateRequest request) {
         Employee manager = findEmployee(request.getManagerEmployeeId());
@@ -44,6 +46,7 @@ public class ProcessService {
     }
 
     /* process_code는 잠금 - 여기서 건드리지 않음 */
+    @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Process update(Long id, ProcessUpdateRequest request) {
         Process process = getById(id);

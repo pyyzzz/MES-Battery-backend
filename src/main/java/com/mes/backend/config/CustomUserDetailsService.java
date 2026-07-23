@@ -22,10 +22,11 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Employee employee = employeeRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("존재하지 않는 계정입니다: " + username));
+        String role = employee.getRole() != null ? employee.getRole() : "작업자";
         return User.builder()
                 .username(employee.getUsername())
                 .password(employee.getPassword())
-                .authorities("USER")
+                .authorities(role)
                 .build();
     }
 }
