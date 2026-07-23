@@ -14,6 +14,18 @@ public interface MaterialTransactionRepository extends JpaRepository<MaterialTra
     @Query("""
             select transaction
             from MaterialTransaction transaction
+            join fetch transaction.materialLot materialLot
+            join fetch materialLot.material material
+            left join fetch transaction.productLot productLot
+            left join fetch transaction.employee employee
+            left join fetch transaction.process process
+            order by transaction.transactionAt desc, transaction.id desc
+            """)
+    List<MaterialTransaction> findAllForInventoryTransactionPage();
+
+    @Query("""
+            select transaction
+            from MaterialTransaction transaction
             join fetch transaction.productLot productLot
             join fetch transaction.materialLot materialLot
             join fetch materialLot.material material
