@@ -61,7 +61,7 @@ public class ProductionService {
 
     @Transactional
     public Material inboundMaterial(String code, String name, int amount) {
-        Material material = materialRepo.findByCode(code)
+        Material material = materialRepo.findByMaterialCode(code)
                 .orElse(Material.builder().code(code).name(name).currentStock(0).build());
         material.setCurrentStock(material.getCurrentStock() + amount);
         return materialRepo.save(material);
