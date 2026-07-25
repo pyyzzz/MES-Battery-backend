@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import com.mes.backend.entity.WorkOrder;
 
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
-    List<WorkOrder> findAllByOrderByIdDesc();
     Optional<WorkOrder> findFirstByWorkOrderStatus(String workOrderStatus);
     Optional<WorkOrder> findFirstByWorkOrderStatusOrderByIdAsc(String workOrderStatus);
     long countByWorkOrderNoStartingWith(String prefix);

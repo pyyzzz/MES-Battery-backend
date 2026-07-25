@@ -15,7 +15,6 @@ import com.mes.backend.entity.Bom;
 import com.mes.backend.entity.BomItem;
 import com.mes.backend.entity.DefectType;
 import com.mes.backend.entity.Equipment;
-import com.mes.backend.entity.Material;
 import com.mes.backend.entity.MaterialLot;
 import com.mes.backend.entity.MeasurementSpec;
 import com.mes.backend.entity.Process;
@@ -58,33 +57,6 @@ public class ProductionService {
     private final QualityInspectionRepository qualityInspectionRepo;
     private final InspectionMeasurementRepository inspectionMeasurementRepo;
     private final MeasurementSpecRepository measurementSpecRepo;
-
-    @Transactional
-    public Material inboundMaterial(String code, String name, int amount) {
-        Material material = materialRepo.findByMaterialCode(code)
-                .orElse(Material.builder().code(code).name(name).currentStock(0).build());
-        material.setCurrentStock(material.getCurrentStock() + amount);
-        return materialRepo.save(material);
-    }
-
-    public List<Material> getMaterialStock() {
-        return materialRepo.findAll();
-    }
-
-    @Transactional
-    public WorkOrder createWorkOrder(String productCode, int targetQty) {
-        WorkOrder order = WorkOrder.builder()
-                .productCode(productCode)
-                .targetQty(targetQty)
-                .currentQty(0)
-                .status("WAITING")
-                .build();
-        return orderRepo.save(order);
-    }
-
-    public List<WorkOrder> getAllWorkOrders() {
-        return orderRepo.findAllByOrderByIdDesc();
-    }
 
     /* 라인이 1개뿐이라 시스템 전체에 동시 진행 중인 작업지시는 최대 1개로 가정(machineId별 할당 개념 없음) */
     @Transactional
