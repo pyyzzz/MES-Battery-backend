@@ -138,14 +138,48 @@ public class ProductionService {
     }
 
     private boolean isMaterialAvailable(String productCode) {
+        if (productCode == null || productCode.trim().isEmpty()) {
+            log.warn("[자재 확인 실패] productCode가 비어있습니다.");
+            return false;
+        }
+
         List<Bom> boms = bomRepo.findAllByProduct_ProductCode(productCode);
+        if (boms.isEmpty()) {
+            log.warn("[자재 확인 실패] 제품에 연결된 BOM이 없습니다. productCode={}", productCode);
+            return false;
+        }
+
+        Map<Long, RequiredMaterial> requiredByMaterialId = new LinkedHashMap<>();
         for (Bom bom : boms) {
-            if (bom.getMaterial() == null) {
-                continue; // 신규 BomItem 모델에선 이 필드가 항상 비어있음(기존 합의: 재고충분으로 취급)
-            }
-            if (bom.getMaterial().getCurrentStock() < bom.getRequiredQty()) {
-                log.error("자재 부족: {} (현재: {}, 필요: {})",
-                        bom.getMaterial().getName(), bom.getMaterial().getCurrentStock(), bom.getRequiredQty());
+            bom.getBomItems().stream()
+                    .filter(bomItem -> bomItem.getMaterial() != null)
+                    .filter(bomItem -> bomItem.getMaterial().getId() != null)
+                    .filter(bomItem -> bomItem.getRequiredQuantity() != null)
+                    .forEach(bomItem -> requiredByMaterialId.merge(
+                            bomItem.getMaterial().getId(),
+                            new RequiredMaterial(
+                                    bomItem.getMaterial().getId(),
+                                    bomItem.getMaterial().getMaterialCode(),
+                                    bomItem.getMaterial().getMaterialName(),
+                                    bomItem.getRequiredQuantity()
+                            ),
+                            (left, right) -> left.add(right.requiredQuantity())
+                    ));
+        }
+
+        if (requiredByMaterialId.isEmpty()) {
+            log.warn("[자재 확인] BOM_ITEM이 없어 자재 소요량이 없습니다. productCode={}", productCode);
+            return true;
+        }
+
+        for (RequiredMaterial requiredMaterial : requiredByMaterialId.values()) {
+            BigDecimal availableQuantity = materialLotRepo.sumCurrentQuantityByMaterialId(requiredMaterial.materialId());
+            if (availableQuantity.compareTo(requiredMaterial.requiredQuantity()) < 0) {
+                log.warn("[자재 부족] {}({}) 현재={}, 필요={}",
+                        requiredMaterial.materialName(),
+                        requiredMaterial.materialCode(),
+                        availableQuantity,
+                        requiredMaterial.requiredQuantity());
                 return false;
             }
         }
@@ -266,6 +300,12 @@ public class ProductionService {
         }
         if (remaining.signum() > 0) {
             throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + bomItem.getMaterial().getMaterialName());
+        }
+    }
+
+    private record RequiredMaterial(Long materialId, String materialCode, String materialName, BigDecimal requiredQuantity) {
+        private RequiredMaterial add(BigDecimal additionalQuantity) {
+            return new RequiredMaterial(materialId, materialCode, materialName, requiredQuantity.add(additionalQuantity));
         }
     }
 

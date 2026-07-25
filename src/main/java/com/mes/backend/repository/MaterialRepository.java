@@ -20,4 +20,12 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
             order by m.id desc
             """)
     List<Material> search(@Param("materialName") String materialName, @Param("materialCode") String materialCode);
+
+    @Query("""
+            select distinct material
+            from Material material
+            left join fetch material.materialLots materialLot
+            order by material.id asc
+            """)
+    List<Material> findAllForInventoryPage();
 }
