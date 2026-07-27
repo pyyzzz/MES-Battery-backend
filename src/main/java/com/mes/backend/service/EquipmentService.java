@@ -1,6 +1,8 @@
 // 설비(Equipment) 마스터 CRUD
 package com.mes.backend.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.mes.backend.dto.EquipmentCreateRequest;
 import com.mes.backend.dto.EquipmentUpdateRequest;
+import com.mes.backend.dto.ProductionReportDto;
 import com.mes.backend.entity.Equipment;
 import com.mes.backend.entity.Process;
 import com.mes.backend.exception.CustomException;
@@ -60,6 +63,32 @@ public class EquipmentService {
         equipment.setActive(request.getActive());
         equipment.setStatusMessage(request.getStatusMessage());
         return equipmentRepo.save(equipment);
+    }
+
+    /* 환경센서(온도0x10/습도0x11/설비전원전압0x12) 리포트 - 최신값 덮어쓰기, QualityInspection/BOM차감/판정 로직과 무관 */
+    private static final int PROCESS_TYPE_TEMP = 16;
+    private static final int PROCESS_TYPE_HUMIDITY = 17;
+    private static final int PROCESS_TYPE_SUPPLY_VOLTAGE = 18;
+
+    @Transactional
+    public void reportEnvironment(ProductionReportDto dto) {
+        Equipment equipment = equipmentRepo.findByEquipmentPort(parsePort(dto.getMachineId()))
+                .orElseThrow(() -> new RuntimeException("포트에 해당하는 설비를 찾을 수 없습니다. machineId=" + dto.getMachineId()));
+
+        BigDecimal value = BigDecimal.valueOf(dto.getValue());
+        switch (dto.getProcessType()) {
+            case PROCESS_TYPE_TEMP -> equipment.setCurrentTemp(value);
+            case PROCESS_TYPE_HUMIDITY -> equipment.setCurrentHumidity(value);
+            case PROCESS_TYPE_SUPPLY_VOLTAGE -> equipment.setCurrentSupplyVoltage(value);
+            default -> throw new IllegalArgumentException("환경센서 리포트가 아닌 processType입니다: " + dto.getProcessType());
+        }
+        equipment.setLastReportedAt(LocalDateTime.now());
+        equipmentRepo.save(equipment);
+    }
+
+    private int parsePort(String machineId) {
+        String portPart = machineId.substring(machineId.lastIndexOf('-') + 1);
+        return Integer.parseInt(portPart);
     }
 
     private Process findProcess(Long processId) {

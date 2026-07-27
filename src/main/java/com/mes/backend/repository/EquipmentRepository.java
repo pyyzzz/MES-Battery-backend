@@ -13,6 +13,7 @@ import com.mes.backend.entity.Equipment;
 public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     Optional<Equipment> findByEquipmentCode(String equipmentCode);
     Optional<Equipment> findByProcess_Id(Long processId);
+    Optional<Equipment> findByEquipmentPort(Integer equipmentPort);
 
     @Query("""
             select e from Equipment e

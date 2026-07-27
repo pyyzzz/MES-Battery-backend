@@ -79,16 +79,22 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedEquipment() {
-        seedEquipmentFor(49, "EQ-010", "전극설비");
-        seedEquipmentFor(50, "EQ-020", "조립설비");
-        seedEquipmentFor(51, "EQ-030", "활성화설비");
-        seedEquipmentFor(52, "EQ-040", "팩설비");
-        seedEquipmentFor(53, "EQ-050", "검사설비");
-        seedEquipmentFor(54, "EQ-060", "포장설비");
+        seedEquipmentFor(49, "EQ-010", "전극설비", 5006);
+        seedEquipmentFor(50, "EQ-020", "조립설비", 5007);
+        seedEquipmentFor(51, "EQ-030", "활성화설비", 5008);
+        seedEquipmentFor(52, "EQ-040", "팩설비", 5009);
+        seedEquipmentFor(53, "EQ-050", "검사설비", 5010);
+        seedEquipmentFor(54, "EQ-060", "포장설비", 5011);
     }
 
-    private void seedEquipmentFor(int processType, String equipmentCode, String equipmentName) {
-        if (equipmentRepository.findByEquipmentCode(equipmentCode).isPresent()) {
+    /* 이미 존재하는 row에 equipment_port가 누락돼 있으면 재기동 시 자동으로 채워준다(자가치유) */
+    private void seedEquipmentFor(int processType, String equipmentCode, String equipmentName, int equipmentPort) {
+        Equipment existing = equipmentRepository.findByEquipmentCode(equipmentCode).orElse(null);
+        if (existing != null) {
+            if (existing.getEquipmentPort() == null) {
+                existing.setEquipmentPort(equipmentPort);
+                equipmentRepository.save(existing);
+            }
             return;
         }
         Process process = processRepository.findByProcessType(processType)
@@ -97,6 +103,7 @@ public class DataSeeder implements CommandLineRunner {
                 .process(process)
                 .equipmentCode(equipmentCode)
                 .equipmentName(equipmentName)
+                .equipmentPort(equipmentPort)
                 .build());
     }
 

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mes.backend.dto.ProductionReportDto;
 import com.mes.backend.entity.WorkOrder;
+import com.mes.backend.service.EquipmentService;
 import com.mes.backend.service.ProductionService;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class MesController {
 
     private final ProductionService productionService;
+    private final EquipmentService equipmentService;
 
     @GetMapping("/machine/poll")
     public ResponseEntity<WorkOrder> pollWorkOrder(@RequestParam String machineId) {
@@ -30,6 +32,12 @@ public class MesController {
     @PostMapping("/machine/report")
     public ResponseEntity<Void> reportProduction(@RequestBody ProductionReportDto request) {
         productionService.reportProduction(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/machine/environment")
+    public ResponseEntity<Void> reportEnvironment(@RequestBody ProductionReportDto request) {
+        equipmentService.reportEnvironment(request);
         return ResponseEntity.ok().build();
     }
 }

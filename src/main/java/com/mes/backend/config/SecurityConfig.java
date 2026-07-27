@@ -51,7 +51,7 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/mes/auth/login", "/api/mes/machine/poll", "/api/mes/machine/report").permitAll()
+                        .requestMatchers("/api/mes/auth/login", "/api/mes/machine/poll", "/api/mes/machine/report", "/api/mes/machine/environment").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
