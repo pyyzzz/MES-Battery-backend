@@ -10,6 +10,7 @@ public class EquipmentCreateRequest {
     private String equipmentCode;
     private String equipmentName;
     private Long processId;
+    private String equipmentStatus;
     private Boolean active;
     private String statusMessage;
 }

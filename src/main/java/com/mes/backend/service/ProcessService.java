@@ -63,6 +63,14 @@ public class ProcessService {
         return processRepo.save(process);
     }
 
+    @PreAuthorize("hasAuthority('관리자')")
+    @Transactional
+    public void delete(Long id) {
+        Process process = getById(id);
+        process.setProcessStatus("INACTIVE");
+        processRepo.save(process);
+    }
+
     private Employee findEmployee(Long employeeId) {
         return employeeRepo.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("담당자를 찾을 수 없습니다. ID: " + employeeId));

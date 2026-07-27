@@ -235,8 +235,6 @@ public class InventoryService {
                 .beforeStock(snapshot != null ? snapshot.beforeStock() : BigDecimal.ZERO)
                 .afterStock(snapshot != null ? snapshot.afterStock() : BigDecimal.ZERO)
                 .worker(transaction.getEmployee() != null ? valueOrEmpty(transaction.getEmployee().getEmployeeName()) : "")
-                .from(INBOUND.equals(type) ? "Inbound Area" : "Material Warehouse")
-                .to(INBOUND.equals(type) ? "Material Warehouse" : "Production Line")
                 .note(INBOUND.equals(type) ? "Material inbound" : "Material consumed")
                 .build();
     }

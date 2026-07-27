@@ -46,6 +46,7 @@ public class EquipmentService {
                 .process(process)
                 .equipmentCode(request.getEquipmentCode())
                 .equipmentName(request.getEquipmentName())
+                .equipmentStatus(request.getEquipmentStatus())
                 .active(request.getActive())
                 .statusMessage(request.getStatusMessage())
                 .build());
@@ -60,6 +61,7 @@ public class EquipmentService {
         ensureProcessAvailable(process, id);
         equipment.setProcess(process);
         equipment.setEquipmentName(request.getEquipmentName());
+        equipment.setEquipmentStatus(request.getEquipmentStatus());
         equipment.setActive(request.getActive());
         equipment.setStatusMessage(request.getStatusMessage());
         return equipmentRepo.save(equipment);

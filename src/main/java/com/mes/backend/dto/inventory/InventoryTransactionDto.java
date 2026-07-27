@@ -22,7 +22,5 @@ public class InventoryTransactionDto {
     private BigDecimal beforeStock;
     private BigDecimal afterStock;
     private String worker;
-    private String from;
-    private String to;
     private String note;
 }

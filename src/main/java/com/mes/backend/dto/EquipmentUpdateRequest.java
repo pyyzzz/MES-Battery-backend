@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 public class EquipmentUpdateRequest {
     private String equipmentName;
     private Long processId;
+    private String equipmentStatus;
     private Boolean active;
     private String statusMessage;
 }
