@@ -42,10 +42,12 @@ public class ProcessService {
                 .sequenceNo(request.getSequenceNo())
                 .managerEmployee(manager)
                 .description(request.getDescription())
+                .processStatus(request.getProcessStatus() != null ? request.getProcessStatus() : "사용")
                 .build());
     }
 
-    /* process_code는 잠금 - 여기서 건드리지 않음 */
+    /* process_code는 잠금 - 여기서 건드리지 않음.
+     * processStatus는 프론트가 아직 안 보내는 경우가 있어(null) 그때는 기존 값 유지 */
     @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Process update(Long id, ProcessUpdateRequest request) {
@@ -55,6 +57,9 @@ public class ProcessService {
         process.setSequenceNo(request.getSequenceNo());
         process.setManagerEmployee(manager);
         process.setDescription(request.getDescription());
+        if (request.getProcessStatus() != null) {
+            process.setProcessStatus(request.getProcessStatus());
+        }
         return processRepo.save(process);
     }
 

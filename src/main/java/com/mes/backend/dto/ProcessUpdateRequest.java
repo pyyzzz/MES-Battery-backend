@@ -11,4 +11,5 @@ public class ProcessUpdateRequest {
     private Integer sequenceNo;
     private Long managerEmployeeId;
     private String description;
+    private String processStatus;
 }

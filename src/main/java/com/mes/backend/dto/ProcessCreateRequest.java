@@ -12,4 +12,5 @@ public class ProcessCreateRequest {
     private Integer sequenceNo;
     private Long managerEmployeeId;
     private String description;
+    private String processStatus;
 }
