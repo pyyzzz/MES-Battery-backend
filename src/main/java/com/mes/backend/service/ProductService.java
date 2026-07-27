@@ -28,12 +28,20 @@ public class ProductService {
     public List<Product> search(String productName, LocalDate createdFrom, LocalDate createdTo) {
         LocalDateTime from = createdFrom != null ? createdFrom.atStartOfDay() : null;
         LocalDateTime toExclusive = createdTo != null ? createdTo.plusDays(1).atStartOfDay() : null;
-        return productRepo.search(productName, from, toExclusive);
+        List<Product> products = productRepo.search(productName, from, toExclusive);
+        products.forEach(this::populateBomId);
+        return products;
     }
 
     public Product getById(Long id) {
-        return productRepo.findById(id)
+        Product product = productRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다. ID: " + id));
+        populateBomId(product);
+        return product;
+    }
+
+    private void populateBomId(Product product) {
+        bomRepo.findByProduct_Id(product.getId()).ifPresent(bom -> product.setBomId(bom.getId()));
     }
 
     /* 등록 성공 시 연결된 빈 BOM 1행도 같은 트랜잭션에서 생성 */
