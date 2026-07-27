@@ -44,6 +44,9 @@ public class Equipment {
     @Column(name = "equipment_code", unique = true)
     private String equipmentCode;
 
+    @Column(name = "equipment_port", unique = true)
+    private Integer equipmentPort;
+
     @Column(name = "equipment_name")
     private String equipmentName;
 

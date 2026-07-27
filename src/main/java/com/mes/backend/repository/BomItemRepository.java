@@ -11,4 +11,5 @@ import com.mes.backend.entity.Process;
 
 public interface BomItemRepository extends JpaRepository<BomItem, Long> {
     List<BomItem> findAllByBomAndInputProcess(Bom bom, Process inputProcess);
+    List<BomItem> findAllByBom(Bom bom);
 }

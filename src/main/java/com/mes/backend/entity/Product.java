@@ -14,6 +14,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -60,6 +61,10 @@ public class Product {
     @JsonIgnore
     @OneToOne(mappedBy = "product")
     private Bom bom;
+
+    /* 작업지시 등록 폼이 제품 선택 -> bomId 변환에 씀 (Product.bom은 JsonIgnore라 직접 노출 안 함) */
+    @Transient
+    private Long bomId;
 
     @PrePersist
     public void prePersist() {

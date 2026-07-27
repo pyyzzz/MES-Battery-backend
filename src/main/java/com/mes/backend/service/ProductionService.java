@@ -7,15 +7,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.mes.backend.dto.ProductionReportDto;
 import com.mes.backend.entity.Bom;
 import com.mes.backend.entity.BomItem;
 import com.mes.backend.entity.DefectType;
 import com.mes.backend.entity.Equipment;
-import com.mes.backend.entity.Material;
 import com.mes.backend.entity.MaterialLot;
 import com.mes.backend.entity.MeasurementSpec;
 import com.mes.backend.entity.Process;
@@ -45,7 +47,10 @@ public class ProductionService {
 
     private static final int PROCESS_TYPE_INSPECTION = 53; // 0x35
     private static final int PROCESS_TYPE_PACKAGING = 54;  // 0x36
+    private static final int MAX_LOCK_RETRIES = 3;
+    private static final long LOCK_RETRY_DELAY_MS = 300;
 
+    private final PlatformTransactionManager transactionManager;
     private final WorkOrderRepository orderRepo;
     private final MaterialRepository materialRepo;
     private final BomRepository bomRepo;
@@ -58,33 +63,6 @@ public class ProductionService {
     private final QualityInspectionRepository qualityInspectionRepo;
     private final InspectionMeasurementRepository inspectionMeasurementRepo;
     private final MeasurementSpecRepository measurementSpecRepo;
-
-    @Transactional
-    public Material inboundMaterial(String code, String name, int amount) {
-        Material material = materialRepo.findByCode(code)
-                .orElse(Material.builder().code(code).name(name).currentStock(0).build());
-        material.setCurrentStock(material.getCurrentStock() + amount);
-        return materialRepo.save(material);
-    }
-
-    public List<Material> getMaterialStock() {
-        return materialRepo.findAll();
-    }
-
-    @Transactional
-    public WorkOrder createWorkOrder(String productCode, int targetQty) {
-        WorkOrder order = WorkOrder.builder()
-                .productCode(productCode)
-                .targetQty(targetQty)
-                .currentQty(0)
-                .status("WAITING")
-                .build();
-        return orderRepo.save(order);
-    }
-
-    public List<WorkOrder> getAllWorkOrders() {
-        return orderRepo.findAllByOrderByIdDesc();
-    }
 
     /* 라인이 1개뿐이라 시스템 전체에 동시 진행 중인 작업지시는 최대 1개로 가정(machineId별 할당 개념 없음) */
     @Transactional
@@ -186,8 +164,34 @@ public class ProductionService {
         return true;
     }
 
-    @Transactional
+    /* 데드락(CannotAcquireLockException)/낙관적 락 충돌(ObjectOptimisticLockingFailureException) 발생 시에만
+     * 짧은 대기 후 최대 MAX_LOCK_RETRIES회 재시도. 둘 다 ConcurrencyFailureException의 하위타입이라 한 곳에서 잡음.
+     * 매 시도마다 새 트랜잭션이 열려야 하므로(자기 자신을 @Transactional로 재호출하면 프록시를
+     * 안 타서 새 트랜잭션이 안 열림) TransactionTemplate으로 직접 트랜잭션 경계를 관리한다.
+     * SHORTAGE(CustomException) 등 다른 예외는 ConcurrencyFailureException 계열이 아니라 재시도 대상이 아님. */
     public void reportProduction(ProductionReportDto dto) {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        for (int attempt = 1; attempt <= MAX_LOCK_RETRIES; attempt++) {
+            try {
+                transactionTemplate.executeWithoutResult(status -> reportProductionInternal(dto));
+                return;
+            } catch (ConcurrencyFailureException e) {
+                if (attempt >= MAX_LOCK_RETRIES) {
+                    throw e;
+                }
+                log.warn("[재시도] 동시성 충돌(데드락 또는 낙관적 락 실패로 추정) - {}/{}회, orderId={}, processType={}",
+                        attempt, MAX_LOCK_RETRIES, dto.getOrderId(), dto.getProcessType());
+                try {
+                    Thread.sleep(LOCK_RETRY_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+    }
+
+    private void reportProductionInternal(ProductionReportDto dto) {
         Process process = processRepo.findByProcessType(dto.getProcessType())
                 .orElseThrow(() -> new RuntimeException("등록되지 않은 공정 타입: " + dto.getProcessType()));
         Equipment equipment = process.getEquipment();
