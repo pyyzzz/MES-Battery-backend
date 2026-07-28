@@ -1,6 +1,7 @@
 // 세션 기반 로그인/로그아웃 API
 package com.mes.backend.controller;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mes.backend.dto.LoginRequest;
+import com.mes.backend.repository.EmployeeRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,6 +33,7 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final EmployeeRepository employeeRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request,
@@ -69,6 +72,14 @@ public class AuthController {
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
                 .orElse(null);
-        return Map.of("username", authentication.getName(), "role", role);
+        Long employeeId = employeeRepository.findByUsername(authentication.getName())
+                .map(employee -> employee.getId())
+                .orElse(null);
+
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("username", authentication.getName());
+        userInfo.put("role", role);
+        userInfo.put("employeeId", employeeId);
+        return userInfo;
     }
 }

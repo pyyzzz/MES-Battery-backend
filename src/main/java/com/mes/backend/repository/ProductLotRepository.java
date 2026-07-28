@@ -36,6 +36,11 @@ public interface ProductLotRepository extends JpaRepository<ProductLot, Long> {
             left join fetch productLot.workOrder workOrder
             left join fetch workOrder.bom bom
             left join fetch bom.product product
+            left join fetch productLot.qualityInspections inspection
+            left join fetch inspection.process process
+            left join fetch inspection.equipment equipment
+            left join fetch inspection.defectType defectType
+            left join fetch inspection.inspectorEmployee inspector
             where productLot.id = :id
             """)
     Optional<ProductLot> findByIdWithDetails(@Param("id") Long id);
