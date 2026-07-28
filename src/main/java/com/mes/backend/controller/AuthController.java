@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mes.backend.dto.LoginRequest;
+import com.mes.backend.entity.Employee;
 import com.mes.backend.repository.EmployeeRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -72,14 +73,25 @@ public class AuthController {
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
                 .orElse(null);
-        Long employeeId = employeeRepository.findByUsername(authentication.getName())
-                .map(employee -> employee.getId())
-                .orElse(null);
+        Employee employee = employeeRepository.findByUsername(authentication.getName()).orElse(null);
 
         Map<String, Object> userInfo = new LinkedHashMap<>();
         userInfo.put("username", authentication.getName());
         userInfo.put("role", role);
-        userInfo.put("employeeId", employeeId);
+        userInfo.put("employeeId", employee != null ? employee.getId() : null);
+        userInfo.put("employeeNo", employee != null ? employee.getEmployeeNo() : null);
+        userInfo.put("employeeName", employee != null ? employee.getEmployeeName() : null);
+        userInfo.put("displayName", displayName(authentication.getName(), role, employee));
         return userInfo;
+    }
+
+    private String displayName(String username, String role, Employee employee) {
+        if (employee != null && employee.getEmployeeName() != null && !employee.getEmployeeName().isBlank()) {
+            return employee.getEmployeeName();
+        }
+        if ("admin".equalsIgnoreCase(username) && role != null && !role.isBlank()) {
+            return role;
+        }
+        return username;
     }
 }

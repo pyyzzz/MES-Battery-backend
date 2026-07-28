@@ -52,6 +52,12 @@ public class DataSeeder implements CommandLineRunner {
         if (admin.getRole() == null) {
             admin.setRole("관리자");
         }
+        if (admin.getEmployeeName() == null || admin.getEmployeeName().isBlank()) {
+            admin.setEmployeeName("관리자");
+        }
+        if (admin.getEmployeeNo() == null || admin.getEmployeeNo().isBlank()) {
+            admin.setEmployeeNo("ADMIN");
+        }
         return employeeRepository.save(admin);
     }
 

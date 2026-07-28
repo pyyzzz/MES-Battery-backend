@@ -378,6 +378,10 @@ public class InventoryService {
         if (currentQuantity.signum() <= 0) {
             return "DEFECT";
         }
+        BigDecimal initialQuantity = safe(lot.getInitialQuantity());
+        if (initialQuantity.signum() > 0 && currentQuantity.compareTo(initialQuantity) < 0) {
+            return "IN_USE";
+        }
         String status = normalize(lot.getLotStatus());
         if (status != null && (status.contains("progress") || status.contains("in_use") || status.contains("생산중"))) {
             return "IN_USE";

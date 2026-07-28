@@ -19,6 +19,7 @@ import com.mes.backend.entity.BomItem;
 import com.mes.backend.entity.DefectType;
 import com.mes.backend.entity.Equipment;
 import com.mes.backend.entity.MaterialLot;
+import com.mes.backend.entity.MaterialTransaction;
 import com.mes.backend.entity.MeasurementSpec;
 import com.mes.backend.entity.Process;
 import com.mes.backend.entity.ProductLot;
@@ -72,7 +73,7 @@ public class ProductionService {
                         .map(waiting -> {
                             String productCode = waiting.getBom() != null && waiting.getBom().getProduct() != null
                                     ? waiting.getBom().getProduct().getProductCode() : null;
-                            if (!isMaterialAvailable(productCode)) {
+                            if (!isMaterialAvailableForOrder(waiting)) {
                                 log.warn("[할당 보류] {} - 자재 부족으로 할당하지 않음", productCode);
                                 return null;
                             }
@@ -113,6 +114,45 @@ public class ProductionService {
         order.setCurrentQty(order.getProductLot() != null && order.getProductLot().getCurrentQty() != null
                 ? order.getProductLot().getCurrentQty() : 0);
         order.setStatus(order.getWorkOrderStatus());
+    }
+
+    private boolean isMaterialAvailableForOrder(WorkOrder order) {
+        if (order == null || order.getBom() == null) {
+            log.warn("[자재 확인 실패] 작업지시에 BOM이 없습니다. workOrderId={}", order != null ? order.getId() : null);
+            return false;
+        }
+
+        int orderQuantity = order.getOrderQuantity() != null ? order.getOrderQuantity() : 0;
+        if (orderQuantity <= 0) {
+            log.warn("[자재 확인 실패] 작업지시 수량이 올바르지 않습니다. workOrderId={}, orderQuantity={}",
+                    order.getId(),
+                    order.getOrderQuantity());
+            return false;
+        }
+
+        Map<Long, RequiredMaterial> requiredByMaterialId = new LinkedHashMap<>();
+        for (BomItem bomItem : bomItemRepo.findAllByBom(order.getBom())) {
+            mergeRequiredMaterial(requiredByMaterialId, bomItem, orderQuantity);
+        }
+
+        if (requiredByMaterialId.isEmpty()) {
+            log.warn("[자재 확인] BOM_ITEM이 없어 자재 소요량이 없습니다. workOrderId={}", order.getId());
+            return false;
+        }
+
+        for (RequiredMaterial requiredMaterial : requiredByMaterialId.values()) {
+            BigDecimal availableQuantity = materialLotRepo.sumCurrentQuantityByMaterialId(requiredMaterial.materialId());
+            if (availableQuantity.compareTo(requiredMaterial.requiredQuantity()) < 0) {
+                log.warn("[자재 부족] {}({}) 현재={}, 필요={}, workOrderId={}",
+                        requiredMaterial.materialName(),
+                        requiredMaterial.materialCode(),
+                        availableQuantity,
+                        requiredMaterial.requiredQuantity(),
+                        order.getId());
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isMaterialAvailable(String productCode) {
@@ -246,11 +286,52 @@ public class ProductionService {
         /* 5. 포장(마지막 공정)일 때만 생산수량 증가 + 완료판정 */
         if (dto.getProcessType() == PROCESS_TYPE_PACKAGING) {
             int newQty = (productLot.getCurrentQty() == null ? 0 : productLot.getCurrentQty()) + 1;
+            validateConsumedMaterialsForOutput(order, productLot, newQty);
             productLot.setCurrentQty(newQty);
             if (order.getOrderQuantity() != null && newQty >= order.getOrderQuantity()) {
                 order.setWorkOrderStatus("COMPLETED");
                 order.setCompletedAt(LocalDateTime.now());
                 productLot.setLotStatus("생산완료");
+            }
+        }
+    }
+
+    private void validateConsumedMaterialsForOutput(WorkOrder order, ProductLot productLot, int outputQty) {
+        if (order == null || order.getBom() == null) {
+            throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:BOM");
+        }
+
+        Map<Long, RequiredMaterial> requiredByMaterialId = new LinkedHashMap<>();
+        for (BomItem bomItem : bomItemRepo.findAllByBom(order.getBom())) {
+            mergeRequiredMaterial(requiredByMaterialId, bomItem, outputQty);
+        }
+
+        if (requiredByMaterialId.isEmpty()) {
+            throw new CustomException("INVALID_BOM", "선택한 제품에 등록된 BOM 자재가 없어 생산할 수 없습니다.");
+        }
+
+        Map<Long, BigDecimal> consumedByMaterialId = new LinkedHashMap<>();
+        List<MaterialTransaction> transactions =
+                materialTransactionRepo.findConsumeTransactionsForProductLots(List.of(productLot.getId()));
+        for (MaterialTransaction transaction : transactions) {
+            if (transaction.getMaterialLot() == null || transaction.getMaterialLot().getMaterial() == null) {
+                continue;
+            }
+            Long materialId = transaction.getMaterialLot().getMaterial().getId();
+            BigDecimal quantity = transaction.getQuantity() != null ? transaction.getQuantity() : BigDecimal.ZERO;
+            consumedByMaterialId.merge(materialId, quantity, BigDecimal::add);
+        }
+
+        for (RequiredMaterial requiredMaterial : requiredByMaterialId.values()) {
+            BigDecimal consumedQuantity = consumedByMaterialId.getOrDefault(requiredMaterial.materialId(), BigDecimal.ZERO);
+            if (consumedQuantity.compareTo(requiredMaterial.requiredQuantity()) < 0) {
+                log.warn("[생산 보류] 자재 투입 이력 부족. {}({}) 투입={}, 필요={}, productLotId={}",
+                        requiredMaterial.materialName(),
+                        requiredMaterial.materialCode(),
+                        consumedQuantity,
+                        requiredMaterial.requiredQuantity(),
+                        productLot.getId());
+                throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + requiredMaterial.materialName());
             }
         }
     }
@@ -290,7 +371,9 @@ public class ProductionService {
                 continue;
             }
             BigDecimal consume = available.min(remaining);
-            lot.setCurrentQuantity(available.subtract(consume));
+            BigDecimal afterQuantity = available.subtract(consume);
+            lot.setCurrentQuantity(afterQuantity);
+            lot.setLotStatus(afterQuantity.signum() <= 0 ? "DEFECT" : "IN_USE");
             remaining = remaining.subtract(consume);
             materialTransactionRepo.save(com.mes.backend.entity.MaterialTransaction.builder()
                     .materialLot(lot)
@@ -305,6 +388,26 @@ public class ProductionService {
         if (remaining.signum() > 0) {
             throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + bomItem.getMaterial().getMaterialName());
         }
+    }
+
+    private void mergeRequiredMaterial(Map<Long, RequiredMaterial> requiredByMaterialId, BomItem bomItem, int outputQty) {
+        if (bomItem.getMaterial() == null
+                || bomItem.getMaterial().getId() == null
+                || bomItem.getRequiredQuantity() == null) {
+            return;
+        }
+
+        BigDecimal requiredQuantity = bomItem.getRequiredQuantity().multiply(BigDecimal.valueOf(outputQty));
+        requiredByMaterialId.merge(
+                bomItem.getMaterial().getId(),
+                new RequiredMaterial(
+                        bomItem.getMaterial().getId(),
+                        bomItem.getMaterial().getMaterialCode(),
+                        bomItem.getMaterial().getMaterialName(),
+                        requiredQuantity
+                ),
+                (left, right) -> left.add(right.requiredQuantity())
+        );
     }
 
     private record RequiredMaterial(Long materialId, String materialCode, String materialName, BigDecimal requiredQuantity) {
