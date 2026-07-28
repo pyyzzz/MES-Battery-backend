@@ -9,8 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import com.mes.backend.entity.QualityInspection;
 
 public interface QualityInspectionRepository extends JpaRepository<QualityInspection, Long> {
-    long countByProductLot_Id(Long productLotId);
-    long countByProductLot_IdAndInspectionResult(Long productLotId, String inspectionResult);
+    long countByProductLot_IdAndProcess_Id(Long productLotId, Long processId);
 
     @Query("""
             select distinct inspection

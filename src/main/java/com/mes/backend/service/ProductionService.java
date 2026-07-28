@@ -259,6 +259,10 @@ public class ProductionService {
             }
         }
 
+        /* 이 LOT+이 공정에서 몇 번째 리포트인지(1부터) - 공정별 큐가 FIFO라서 같은 순번끼리는
+         * 같은 물리적 유닛으로 취급 가능(유닛 단위 최종 판정에 사용, 유닛 ID 자체는 아님) */
+        int unitSequence = (int) qualityInspectionRepo.countByProductLot_IdAndProcess_Id(productLot.getId(), process.getId()) + 1;
+
         QualityInspection inspection = qualityInspectionRepo.save(QualityInspection.builder()
                 .productLot(productLot)
                 .process(process)
@@ -267,6 +271,7 @@ public class ProductionService {
                 .inspectorEmployee(order.getManagerEmployee())
                 .inspectionResult(result)
                 .inspectionAt(LocalDateTime.now())
+                .unitSequence(unitSequence)
                 .build());
 
         for (Map.Entry<String, BigDecimal> entry : measurements.entrySet()) {

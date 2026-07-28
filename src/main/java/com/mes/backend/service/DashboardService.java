@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ public class DashboardService {
             "#db2777",
             "#64748b"
     );
+    private static final int TOTAL_PROCESS_COUNT = 6;
 
     private final ProductLotRepository productLotRepository;
     private final QualityInspectionRepository qualityInspectionRepository;
@@ -78,8 +80,13 @@ public class DashboardService {
                 .filter(lot -> isToday(lot.getLotCreatedAt(), today))
                 .mapToInt(lot -> lot.getCurrentQty() != null ? lot.getCurrentQty() : 0)
                 .sum();
-        int goodQty = (int) todayInspections.stream().filter(this::isOk).count();
-        int defectQty = (int) todayInspections.stream().filter(this::isNg).count();
+        /* goodQty/defectQty는 유닛(productLot+unitSequence) 단위 최종 판정 기준: 유닛 하나가
+         * 거친 6개 공정 판정이 전부 모였을 때, 하나라도 NG면 그 유닛은 최종 NG. 오늘 하루 전체는
+         * 여러 LOT이 섞여 있으므로 unitSequence만으로 그룹핑하면 서로 다른 LOT의 같은 순번끼리
+         * 뒤섞이니, (productLot, unitSequence) 복합키로 그룹핑해야 한다. */
+        Collection<List<QualityInspection>> completedUnits = completedUnitGroups(todayInspections);
+        int defectQty = (int) completedUnits.stream().filter(this::isUnitNg).count();
+        int goodQty = completedUnits.size() - defectQty;
         int runningEquipmentCount = (int) equipment.stream().filter(this::isRunning).count();
         int totalEquipmentCount = equipment.size();
         double defectRate = rate(defectQty, goodQty + defectQty);
@@ -226,6 +233,25 @@ public class DashboardService {
 
     private boolean isNg(QualityInspection inspection) {
         return "NG".equalsIgnoreCase(valueOrEmpty(inspection.getInspectionResult()));
+    }
+
+    /* (productLot, unitSequence) 복합키로 그룹핑해서, 6개 공정(TOTAL_PROCESS_COUNT) 판정이 전부
+     * 모인 유닛만 "완성된 유닛"으로 취급한다. 아직 6개가 안 모인 유닛(진행 중)은 조용히 제외한다. */
+    private Collection<List<QualityInspection>> completedUnitGroups(List<QualityInspection> inspections) {
+        return inspections.stream()
+                .filter(inspection -> inspection.getUnitSequence() != null)
+                .collect(Collectors.groupingBy(
+                        inspection -> new UnitKey(inspection.getProductLot().getId(), inspection.getUnitSequence())))
+                .values().stream()
+                .filter(group -> group.size() == TOTAL_PROCESS_COUNT)
+                .toList();
+    }
+
+    private boolean isUnitNg(List<QualityInspection> unitInspections) {
+        return unitInspections.stream().anyMatch(this::isNg);
+    }
+
+    private record UnitKey(Long productLotId, Integer unitSequence) {
     }
 
     private double rate(long numerator, long denominator) {
