@@ -5,7 +5,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,6 +32,7 @@ import com.mes.backend.entity.ProductLot;
 import com.mes.backend.entity.QualityInspection;
 import com.mes.backend.repository.EmployeeRepository;
 import com.mes.backend.repository.EquipmentRepository;
+import com.mes.backend.repository.DefectTypeRepository;
 import com.mes.backend.repository.MaterialLotRepository;
 import com.mes.backend.repository.MaterialRepository;
 import com.mes.backend.repository.ProductLotRepository;
@@ -44,11 +44,21 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DashboardService {
     private static final DateTimeFormatter HOUR_FORMATTER = DateTimeFormatter.ofPattern("HH:00");
-    private static final List<String> DEFECT_COLORS = List.of("#2563eb", "#d97706", "#059669", "#cbd5e1");
+    private static final List<String> DEFECT_COLORS = List.of(
+            "#2563eb",
+            "#d97706",
+            "#059669",
+            "#dc2626",
+            "#7c3aed",
+            "#0891b2",
+            "#db2777",
+            "#64748b"
+    );
 
     private final ProductLotRepository productLotRepository;
     private final QualityInspectionRepository qualityInspectionRepository;
     private final EquipmentRepository equipmentRepository;
+    private final DefectTypeRepository defectTypeRepository;
     private final MaterialRepository materialRepository;
     private final MaterialLotRepository materialLotRepository;
     private final EmployeeRepository employeeRepository;
@@ -127,40 +137,28 @@ public class DashboardService {
     }
 
     private List<DashboardDefectTypeDto> toDefectTypes(List<QualityInspection> inspections) {
-        Map<String, Long> quantitiesByType = inspections.stream()
+        Map<Long, Long> quantitiesByTypeId = inspections.stream()
                 .filter(this::isNg)
+                .filter(inspection -> inspection.getDefectType() != null)
                 .collect(Collectors.groupingBy(
-                        inspection -> defectTypeName(inspection.getDefectType()),
+                        inspection -> inspection.getDefectType().getId(),
                         Collectors.counting()));
 
-        List<Map.Entry<String, Long>> sortedEntries = quantitiesByType.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder()))
+        List<DefectType> defectTypes = defectTypeRepository.findAll().stream()
+                .filter(defectType -> Boolean.TRUE.equals(defectType.getActive()))
+                .sorted(Comparator.comparing(DefectType::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
-        List<DashboardDefectTypeDto> result = new ArrayList<>();
-        long etcCount = 0;
 
-        for (int index = 0; index < sortedEntries.size(); index += 1) {
-            Map.Entry<String, Long> entry = sortedEntries.get(index);
-            if (index < 3) {
-                result.add(DashboardDefectTypeDto.builder()
-                        .name(entry.getKey())
-                        .value(entry.getValue())
-                        .color(DEFECT_COLORS.get(index))
-                        .build());
-            } else {
-                etcCount += entry.getValue();
-            }
-        }
-
-        if (etcCount > 0 || result.isEmpty()) {
-            result.add(DashboardDefectTypeDto.builder()
-                    .name("기타")
-                    .value(etcCount)
-                    .color(DEFECT_COLORS.get(3))
-                    .build());
-        }
-
-        return result;
+        return java.util.stream.IntStream.range(0, defectTypes.size())
+                .mapToObj(index -> {
+                    DefectType defectType = defectTypes.get(index);
+                    return DashboardDefectTypeDto.builder()
+                            .name(defectTypeName(defectType))
+                            .value(quantitiesByTypeId.getOrDefault(defectType.getId(), 0L))
+                            .color(DEFECT_COLORS.get(index % DEFECT_COLORS.size()))
+                            .build();
+                })
+                .toList();
     }
 
     private List<DashboardEquipmentStatusDto> toEquipmentStatus(List<Equipment> equipment) {
