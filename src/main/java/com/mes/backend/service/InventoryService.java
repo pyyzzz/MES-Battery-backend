@@ -30,6 +30,7 @@ import com.mes.backend.entity.Employee;
 import com.mes.backend.entity.Material;
 import com.mes.backend.entity.MaterialLot;
 import com.mes.backend.entity.MaterialTransaction;
+import com.mes.backend.entity.Process;
 import com.mes.backend.entity.ProductLot;
 import com.mes.backend.repository.EmployeeRepository;
 import com.mes.backend.repository.MaterialLotRepository;
@@ -220,6 +221,7 @@ public class InventoryService {
         MaterialLot materialLot = transaction.getMaterialLot();
         Material material = materialLot != null ? materialLot.getMaterial() : null;
         ProductLot productLot = transaction.getProductLot();
+        Process process = transaction.getProcess();
         String type = transactionType(transaction.getTransactionType());
 
         return InventoryTransactionDto.builder()
@@ -231,6 +233,8 @@ public class InventoryService {
                 .unit(material != null ? valueOrEmpty(material.getUnit()) : "")
                 .materialLotNo(materialLot != null ? valueOrEmpty(materialLot.getMaterialLotNo()) : "")
                 .productLotNo(productLot != null ? valueOrEmpty(productLot.getProductLotNo()) : "-")
+                .processCode(process != null ? valueOrEmpty(process.getProcessCode()) : "-")
+                .processName(process != null ? valueOrEmpty(process.getProcessName()) : "-")
                 .quantity(safe(transaction.getQuantity()))
                 .beforeStock(snapshot != null ? snapshot.beforeStock() : BigDecimal.ZERO)
                 .afterStock(snapshot != null ? snapshot.afterStock() : BigDecimal.ZERO)
@@ -350,7 +354,9 @@ public class InventoryService {
         return contains(transaction.getMaterialCode(), keyword)
                 || contains(transaction.getMaterialName(), keyword)
                 || contains(transaction.getMaterialLotNo(), keyword)
-                || contains(transaction.getProductLotNo(), keyword);
+                || contains(transaction.getProductLotNo(), keyword)
+                || contains(transaction.getProcessCode(), keyword)
+                || contains(transaction.getProcessName(), keyword);
     }
 
     private boolean lotMatchesKeyword(InventoryLotDto lot, String keyword) {

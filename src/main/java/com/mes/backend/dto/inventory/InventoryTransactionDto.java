@@ -18,6 +18,8 @@ public class InventoryTransactionDto {
     private String unit;
     private String materialLotNo;
     private String productLotNo;
+    private String processCode;
+    private String processName;
     private BigDecimal quantity;
     private BigDecimal beforeStock;
     private BigDecimal afterStock;
