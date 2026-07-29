@@ -111,6 +111,7 @@ public class ProductLotService {
         return ReportProcessDto.builder()
                 .processCode(first.getProcess() != null ? valueOrEmpty(first.getProcess().getProcessCode()) : "")
                 .processName(first.getProcess() != null ? valueOrEmpty(first.getProcess().getProcessName()) : "")
+                .equipmentCode(equipmentCode(latest))
                 .equipmentName(equipmentName(latest))
                 .workerName(workerName(latest))
                 .startedAt(formatDateTime(minInspectionAt(inspections)))
@@ -157,6 +158,11 @@ public class ProductLotService {
     private String equipmentName(QualityInspection inspection) {
         Equipment equipment = inspection != null ? inspection.getEquipment() : null;
         return equipment != null ? valueOrEmpty(equipment.getEquipmentName()) : "";
+    }
+
+    private String equipmentCode(QualityInspection inspection) {
+        Equipment equipment = inspection != null ? inspection.getEquipment() : null;
+        return equipment != null ? valueOrEmpty(equipment.getEquipmentCode()) : "";
     }
 
     private String workerName(QualityInspection inspection) {

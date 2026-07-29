@@ -297,6 +297,7 @@ public class ProductionService {
                 order.setWorkOrderStatus("COMPLETED");
                 order.setCompletedAt(LocalDateTime.now());
                 productLot.setLotStatus("생산완료");
+                releaseMaterialLots(productLot);
             }
         }
     }
@@ -393,6 +394,18 @@ public class ProductionService {
         if (remaining.signum() > 0) {
             throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + bomItem.getMaterial().getMaterialName());
         }
+    }
+
+    private void releaseMaterialLots(ProductLot productLot) {
+        materialTransactionRepo.findConsumeTransactionsForProductLots(List.of(productLot.getId())).stream()
+                .map(MaterialTransaction::getMaterialLot)
+                .filter(lot -> lot != null)
+                .distinct()
+                .forEach(lot -> lot.setLotStatus(
+                        lot.getCurrentQuantity() != null && lot.getCurrentQuantity().signum() > 0
+                                ? "WAITING"
+                                : "DEFECT"
+                ));
     }
 
     private void mergeRequiredMaterial(Map<Long, RequiredMaterial> requiredByMaterialId, BomItem bomItem, int outputQty) {

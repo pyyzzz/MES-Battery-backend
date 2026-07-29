@@ -60,9 +60,10 @@ public class InventoryService {
         LocalDate end = parseDate(endDate);
         String normalizedStatus = normalize(status);
         String normalizedKeyword = normalize(keyword);
+        Map<Long, List<MaterialTransaction>> transactionsByLotId = transactionsByLotId();
 
         return materialRepository.findAllForInventoryPage().stream()
-                .map(this::toMaterialDto)
+                .map(material -> toMaterialDto(material, transactionsByLotId))
                 .filter(material -> matchesStartDate(parseNullableDate(material.getRegisteredAt()), start))
                 .filter(material -> matchesEndDate(parseNullableDate(material.getRegisteredAt()), end))
                 .filter(material -> normalizedStatus == null || normalizedStatus.equals(normalize(material.getStatus())))
@@ -111,7 +112,7 @@ public class InventoryService {
                 .transactionAt(now)
                 .build());
 
-        return toMaterialDto(material);
+        return toMaterialDto(material, transactionsByLotId());
     }
 
     @Transactional(readOnly = true)
@@ -178,7 +179,7 @@ public class InventoryService {
                 .build();
     }
 
-    private InventoryMaterialDto toMaterialDto(Material material) {
+    private InventoryMaterialDto toMaterialDto(Material material, Map<Long, List<MaterialTransaction>> transactionsByLotId) {
         List<MaterialLot> lots = sortedMaterialLots(material);
         BigDecimal stock = lots.stream()
                 .map(MaterialLot::getCurrentQuantity)
@@ -202,18 +203,20 @@ public class InventoryService {
                 .lastInboundAt(formatDateTime(latestInboundLot != null ? latestInboundLot.getReceiptDate() : null))
                 .location("Material Warehouse")
                 .lotNo(latestInboundLot != null ? valueOrEmpty(latestInboundLot.getMaterialLotNo()) : "")
-                .lots(lots.stream().map(this::toMaterialLotSummaryDto).toList())
+                .lots(lots.stream()
+                        .map(lot -> toMaterialLotSummaryDto(lot, transactionsByLotId.getOrDefault(lot.getId(), List.of())))
+                        .toList())
                 .build();
     }
 
-    private InventoryMaterialLotSummaryDto toMaterialLotSummaryDto(MaterialLot lot) {
+    private InventoryMaterialLotSummaryDto toMaterialLotSummaryDto(MaterialLot lot, List<MaterialTransaction> transactions) {
         return InventoryMaterialLotSummaryDto.builder()
                 .id(lot.getId())
                 .lotNo(valueOrEmpty(lot.getMaterialLotNo()))
                 .inboundAt(formatDateTime(lot.getReceiptDate()))
                 .initialQuantity(safe(lot.getInitialQuantity()))
                 .currentQuantity(safe(lot.getCurrentQuantity()))
-                .status(lotStatus(lot))
+                .status(lotStatus(lot, transactions))
                 .build();
     }
 
@@ -260,7 +263,7 @@ public class InventoryService {
         return InventoryLotDto.builder()
                 .id(lot.getId())
                 .inboundAt(formatDateTime(lot.getReceiptDate()))
-                .status(lotStatus(lot))
+                .status(lotStatus(lot, transactions))
                 .lotNo(valueOrEmpty(lot.getMaterialLotNo()))
                 .materialCode(material != null ? valueOrEmpty(material.getMaterialCode()) : "")
                 .materialName(material != null ? valueOrEmpty(material.getMaterialName()) : "")
@@ -379,20 +382,25 @@ public class InventoryService {
         return "safe";
     }
 
-    private String lotStatus(MaterialLot lot) {
+    private String lotStatus(MaterialLot lot, List<MaterialTransaction> transactions) {
         BigDecimal currentQuantity = safe(lot.getCurrentQuantity());
         if (currentQuantity.signum() <= 0) {
             return "DEFECT";
         }
-        BigDecimal initialQuantity = safe(lot.getInitialQuantity());
-        if (initialQuantity.signum() > 0 && currentQuantity.compareTo(initialQuantity) < 0) {
-            return "IN_USE";
-        }
-        String status = normalize(lot.getLotStatus());
-        if (status != null && (status.contains("progress") || status.contains("in_use") || status.contains("생산중"))) {
+        if (hasInProgressConsumption(transactions)) {
             return "IN_USE";
         }
         return "WAITING";
+    }
+
+    private boolean hasInProgressConsumption(List<MaterialTransaction> transactions) {
+        return transactions.stream()
+                .filter(transaction -> CONSUME.equals(transaction.getTransactionType()))
+                .map(MaterialTransaction::getProductLot)
+                .filter(Objects::nonNull)
+                .map(ProductLot::getWorkOrder)
+                .filter(Objects::nonNull)
+                .anyMatch(workOrder -> "IN_PROGRESS".equals(workOrder.getWorkOrderStatus()));
     }
 
     private String transactionType(String transactionType) {

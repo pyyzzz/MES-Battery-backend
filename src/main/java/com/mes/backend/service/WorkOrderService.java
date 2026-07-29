@@ -17,6 +17,7 @@ import com.mes.backend.dto.WorkOrderRegisterRequest;
 import com.mes.backend.entity.Bom;
 import com.mes.backend.entity.BomItem;
 import com.mes.backend.entity.Employee;
+import com.mes.backend.entity.ProductLot;
 import com.mes.backend.entity.WorkOrder;
 import com.mes.backend.exception.CustomException;
 import com.mes.backend.repository.BomItemRepository;
@@ -37,13 +38,19 @@ public class WorkOrderService {
     private final EmployeeRepository employeeRepo;
     private final MaterialLotRepository materialLotRepo;
 
+    @Transactional(readOnly = true)
     public List<WorkOrder> search(String workOrderNo, String workOrderStatus, LocalDate dueDate) {
-        return orderRepo.search(workOrderNo, workOrderStatus, dueDate);
+        return orderRepo.search(workOrderNo, workOrderStatus, dueDate).stream()
+                .peek(this::fillProgressFields)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public WorkOrder getById(Long id) {
-        return orderRepo.findById(id)
+        WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업지시를 찾을 수 없습니다. ID: " + id));
+        fillProgressFields(order);
+        return order;
     }
 
     /* manager_employee_id는 폼 입력이 아니라 로그인 세션(username)으로 조회한 Employee를 그대로 사용 */
@@ -117,6 +124,15 @@ public class WorkOrderService {
                 );
             }
         }
+    }
+
+    private void fillProgressFields(WorkOrder order) {
+        int targetQty = order.getOrderQuantity() != null ? order.getOrderQuantity() : 0;
+        ProductLot productLot = order.getProductLot();
+        int currentQty = productLot != null && productLot.getCurrentQty() != null ? productLot.getCurrentQty() : 0;
+
+        order.setTargetQty(targetQty);
+        order.setCurrentQty(currentQty);
     }
 
     private record RequiredMaterial(Long materialId, String materialCode, String materialName, BigDecimal requiredQuantity) {

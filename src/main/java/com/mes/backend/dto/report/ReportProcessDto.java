@@ -10,6 +10,7 @@ import lombok.Getter;
 public class ReportProcessDto {
     private String processCode;
     private String processName;
+    private String equipmentCode;
     private String equipmentName;
     private String workerName;
     private String startedAt;
