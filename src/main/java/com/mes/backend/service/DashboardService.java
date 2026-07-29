@@ -54,6 +54,7 @@ public class DashboardService {
             "#db2777",
             "#64748b"
     );
+    private static final List<String> DASHBOARD_EXCLUDED_DEFECT_NAMES = List.of("정렬불량", "체결불량");
 
     private final ProductLotRepository productLotRepository;
     private final QualityInspectionRepository qualityInspectionRepository;
@@ -146,6 +147,7 @@ public class DashboardService {
 
         List<DefectType> defectTypes = defectTypeRepository.findAll().stream()
                 .filter(defectType -> Boolean.TRUE.equals(defectType.getActive()))
+                .filter(defectType -> !DASHBOARD_EXCLUDED_DEFECT_NAMES.contains(defectTypeName(defectType)))
                 .sorted(Comparator.comparing(DefectType::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
