@@ -4,6 +4,7 @@ package com.mes.backend.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +31,6 @@ import com.mes.backend.entity.QualityInspection;
 import com.mes.backend.entity.WorkOrder;
 import com.mes.backend.repository.MaterialTransactionRepository;
 import com.mes.backend.repository.ProductLotRepository;
-import com.mes.backend.repository.QualityInspectionRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,12 +38,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductLotService {
 
-    private static final String INSPECTION_RESULT_OK = "OK";
-    private static final String INSPECTION_RESULT_NG = "NG";
+    private static final int TOTAL_PROCESS_COUNT = 6;
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final ProductLotRepository productLotRepo;
-    private final QualityInspectionRepository qualityInspectionRepo;
     private final MaterialTransactionRepository materialTransactionRepo;
 
     @Transactional(readOnly = true)
@@ -58,9 +56,15 @@ public class ProductLotService {
         ProductLot productLot = productLotRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("완제품LOT을 찾을 수 없습니다. ID: " + id));
 
-        long inspectionCount = qualityInspectionRepo.countByProductLot_Id(id);
-        long passCount = qualityInspectionRepo.countByProductLot_IdAndInspectionResult(id, INSPECTION_RESULT_OK);
-        long failCount = qualityInspectionRepo.countByProductLot_IdAndInspectionResult(id, INSPECTION_RESULT_NG);
+        /* inspectionCount/passCount/failCount는 유닛(unitSequence) 단위 최종 판정 기준: 유닛 하나가
+         * 거친 6개 공정 판정이 전부 모였을 때, 하나라도 NG면 그 유닛은 최종 NG. 아직 6개가 안
+         * 모인 유닛(진행 중)은 조용히 제외한다. */
+        List<QualityInspection> inspections = productLot.getQualityInspections() != null
+                ? productLot.getQualityInspections() : List.of();
+        Collection<List<QualityInspection>> completedUnits = completedUnitGroups(inspections);
+        long inspectionCount = completedUnits.size();
+        long failCount = completedUnits.stream().filter(this::isUnitNg).count();
+        long passCount = inspectionCount - failCount;
         List<MaterialTransaction> consumeTransactions = materialTransactionRepo.findConsumeTransactionsForProductLots(List.of(id));
 
         return ProductLotDetailDto.builder()
@@ -178,6 +182,21 @@ public class ProductLotService {
 
     private boolean isNg(QualityInspection inspection) {
         return "NG".equalsIgnoreCase(inspection.getInspectionResult());
+    }
+
+    /* unitSequence로 그룹핑해서, 6개 공정(TOTAL_PROCESS_COUNT) 판정이 전부 모인 유닛만
+     * "완성된 유닛"으로 취급한다. 아직 6개가 안 모인 유닛(진행 중)은 조용히 제외한다. */
+    private Collection<List<QualityInspection>> completedUnitGroups(List<QualityInspection> inspections) {
+        return inspections.stream()
+                .filter(inspection -> inspection.getUnitSequence() != null)
+                .collect(Collectors.groupingBy(QualityInspection::getUnitSequence))
+                .values().stream()
+                .filter(group -> group.size() == TOTAL_PROCESS_COUNT)
+                .toList();
+    }
+
+    private boolean isUnitNg(List<QualityInspection> unitInspections) {
+        return unitInspections.stream().anyMatch(this::isNg);
     }
 
     private BigDecimal safeQuantity(BigDecimal quantity) {

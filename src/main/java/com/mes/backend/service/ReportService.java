@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +51,7 @@ public class ReportService {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter CHART_DATE_FORMAT = DateTimeFormatter.ofPattern("MM-dd");
     private static final String INSPECTION_PROCESS_CODE = "PROC-050";
+    private static final int TOTAL_PROCESS_COUNT = 6;
 
     private final ProductLotRepository productLotRepository;
     private final MaterialTransactionRepository materialTransactionRepository;
@@ -88,7 +90,7 @@ public class ReportService {
                 .goodQty(goodQty)
                 .defectQty(defectQty)
                 .achievementRate(rate(actualQty, planQty))
-                .yieldRate(rate(goodQty, actualQty))
+                .yieldRate(rate(goodQty, goodQty + defectQty))
                 .build();
     }
 
@@ -209,8 +211,13 @@ public class ReportService {
         List<QualityInspection> inspections = sortedInspections(lot);
         int planQty = workOrder != null && workOrder.getOrderQuantity() != null ? workOrder.getOrderQuantity() : 0;
         int actualQty = lot.getCurrentQty() != null ? lot.getCurrentQty() : 0;
-        int defectQty = (int) inspections.stream().filter(this::isNg).count();
-        int goodQty = Math.max(actualQty - defectQty, 0);
+        /* goodQty/defectQty/yieldRate는 유닛(unitSequence) 단위 최종 판정 기준: 유닛 하나가
+         * 거친 6개 공정 판정이 전부 모였을 때, 하나라도 NG면 그 유닛은 최종 NG. 아직 6개가
+         * 안 모인 유닛(진행 중)은 조용히 제외한다. */
+        Collection<List<QualityInspection>> completedUnits = completedUnitGroups(inspections);
+        int completedUnitQty = completedUnits.size();
+        int defectQty = (int) completedUnits.stream().filter(this::isUnitNg).count();
+        int goodQty = completedUnitQty - defectQty;
 
         return ReportLotDto.builder()
                 .id(lot.getId())
@@ -225,7 +232,7 @@ public class ReportService {
                 .defectQty(defectQty)
                 .status(statusOf(lot, workOrder))
                 .equipment(equipmentName(latestInspection(inspections).orElse(null)))
-                .yieldRate(rate(goodQty, actualQty))
+                .yieldRate(rate(goodQty, completedUnitQty))
                 .processes(toProcessDtos(inspections))
                 .materials(toMaterialDtos(materialTransactions))
                 .quality(toQualityDto(inspections, defectQty))
@@ -521,6 +528,21 @@ public class ReportService {
 
     private boolean isNg(QualityInspection inspection) {
         return "NG".equalsIgnoreCase(inspection.getInspectionResult());
+    }
+
+    /* unitSequence로 그룹핑해서, 6개 공정(TOTAL_PROCESS_COUNT) 판정이 전부 모인 유닛만
+     * "완성된 유닛"으로 취급한다. 아직 6개가 안 모인 유닛(진행 중)은 조용히 제외한다. */
+    private Collection<List<QualityInspection>> completedUnitGroups(List<QualityInspection> inspections) {
+        return inspections.stream()
+                .filter(inspection -> inspection.getUnitSequence() != null)
+                .collect(Collectors.groupingBy(QualityInspection::getUnitSequence))
+                .values().stream()
+                .filter(group -> group.size() == TOTAL_PROCESS_COUNT)
+                .toList();
+    }
+
+    private boolean isUnitNg(List<QualityInspection> unitInspections) {
+        return unitInspections.stream().anyMatch(this::isNg);
     }
 
     private double rate(int numerator, int denominator) {

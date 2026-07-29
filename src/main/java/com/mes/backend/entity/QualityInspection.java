@@ -64,6 +64,11 @@ public class QualityInspection {
     @Column(name = "remarks")
     private String remarks;
 
+    /* 같은 LOT+같은 공정 안에서 리포트가 도착한 순서(1부터 시작). 공정별 큐가 FIFO라서
+     * 같은 순번끼리는 같은 물리적 유닛으로 취급할 수 있다(유닛 단위 최종 판정에 사용). */
+    @Column(name = "unit_sequence")
+    private Integer unitSequence;
+
     @Builder.Default
     @JsonIgnore
     @OneToMany(mappedBy = "qualityInspection")
