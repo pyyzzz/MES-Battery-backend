@@ -57,6 +57,7 @@ public class DashboardService {
     );
     private static final List<String> DASHBOARD_EXCLUDED_DEFECT_NAMES = List.of("정렬불량", "체결불량");
     private static final int TOTAL_PROCESS_COUNT = 6;
+    private static final int PROCESS_TYPE_PACKAGING = 54;
 
     private final ProductLotRepository productLotRepository;
     private final QualityInspectionRepository qualityInspectionRepository;
@@ -106,7 +107,7 @@ public class DashboardService {
                         .goodQty(goodQty)
                         .defectQty(defectQty)
                         .build())
-                .hourlyProduction(toHourlyProduction(todayInspections))
+                .hourlyProduction(toHourlyProduction(inspections, today))
                 .defectTypes(toDefectTypes(todayInspections))
                 .equipmentStatus(toEquipmentStatus(equipment))
                 .materialStatus(toMaterialStatus())
@@ -115,22 +116,35 @@ public class DashboardService {
                 .build();
     }
 
-    private List<DashboardHourlyProductionDto> toHourlyProduction(List<QualityInspection> inspections) {
+    private List<DashboardHourlyProductionDto> toHourlyProduction(List<QualityInspection> inspections, LocalDate today) {
         Map<String, long[]> quantitiesByHour = new LinkedHashMap<>();
 
         for (int hour = 8; hour <= 17; hour += 1) {
             quantitiesByHour.put(String.format("%02d:00", hour), new long[] { 0L, 0L });
         }
 
-        for (QualityInspection inspection : inspections) {
-            if (inspection.getInspectionAt() == null) {
+        Map<UnitKey, List<QualityInspection>> inspectionsByUnit = inspections.stream()
+                .filter(inspection -> inspection.getProductLot() != null)
+                .filter(inspection -> inspection.getProductLot().getId() != null)
+                .filter(inspection -> inspection.getUnitSequence() != null)
+                .collect(Collectors.groupingBy(
+                        inspection -> new UnitKey(inspection.getProductLot().getId(), inspection.getUnitSequence())));
+
+        for (List<QualityInspection> unitInspections : inspectionsByUnit.values()) {
+            QualityInspection packagingInspection = unitInspections.stream()
+                    .filter(this::isPackagingInspection)
+                    .filter(inspection -> isToday(inspection.getInspectionAt(), today))
+                    .findFirst()
+                    .orElse(null);
+            if (packagingInspection == null || packagingInspection.getInspectionAt() == null) {
                 continue;
             }
-            String hour = inspection.getInspectionAt().format(HOUR_FORMATTER);
+
+            String hour = packagingInspection.getInspectionAt().format(HOUR_FORMATTER);
             long[] quantities = quantitiesByHour.computeIfAbsent(hour, ignored -> new long[] { 0L, 0L });
-            if (isNg(inspection)) {
+            if (isUnitNg(unitInspections)) {
                 quantities[1] += 1;
-            } else if (isOk(inspection)) {
+            } else {
                 quantities[0] += 1;
             }
         }
@@ -142,6 +156,12 @@ public class DashboardService {
                         .defect(entry.getValue()[1])
                         .build())
                 .toList();
+    }
+
+    private boolean isPackagingInspection(QualityInspection inspection) {
+        return inspection.getProcess() != null
+                && inspection.getProcess().getProcessType() != null
+                && inspection.getProcess().getProcessType() == PROCESS_TYPE_PACKAGING;
     }
 
     private List<DashboardDefectTypeDto> toDefectTypes(List<QualityInspection> inspections) {
