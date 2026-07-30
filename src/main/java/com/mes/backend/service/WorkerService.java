@@ -47,6 +47,7 @@ public class WorkerService {
                 .role(request.getRole())
                 .hireDate(request.getHireDate())
                 .active(true)
+                .present(true)
                 .username(employeeNo)
                 .password(passwordEncoder.encode(DEFAULT_PASSWORD))
                 .build());
@@ -60,7 +61,9 @@ public class WorkerService {
         employee.setEmployeeName(request.getEmployeeName());
         employee.setHireDate(request.getHireDate());
         employee.setRole(request.getRole());
-        employee.setActive(request.getActive());
+        if (request.getPresent() != null) {
+            employee.setPresent(request.getPresent());
+        }
         return employeeRepo.save(employee);
     }
 

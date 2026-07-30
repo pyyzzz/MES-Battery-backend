@@ -76,7 +76,9 @@ public class DashboardService {
                 .filter(inspection -> isToday(inspection.getInspectionAt(), today))
                 .toList();
         List<Equipment> equipment = equipmentRepository.search(null, null);
-        List<Employee> employees = employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll().stream()
+                .filter(employee -> Boolean.TRUE.equals(employee.getActive()))
+                .toList();
 
         int todayProductionQty = lots.stream()
                 .filter(lot -> isToday(lot.getLotCreatedAt(), today))
@@ -246,7 +248,7 @@ public class DashboardService {
     }
 
     private boolean isPresent(Employee employee) {
-        return Boolean.TRUE.equals(employee.getActive());
+        return employee.getPresent() == null || Boolean.TRUE.equals(employee.getPresent());
     }
 
     private boolean isOk(QualityInspection inspection) {

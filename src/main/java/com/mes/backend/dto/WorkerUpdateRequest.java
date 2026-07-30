@@ -13,4 +13,5 @@ public class WorkerUpdateRequest {
     private LocalDate hireDate;
     private String role;
     private Boolean active;
+    private Boolean present;
 }

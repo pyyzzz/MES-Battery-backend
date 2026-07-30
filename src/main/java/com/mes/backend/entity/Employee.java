@@ -45,6 +45,9 @@ public class Employee {
     @Column(name = "is_active")
     private Boolean active;
 
+    @Column(name = "is_present")
+    private Boolean present;
+
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
@@ -79,6 +82,9 @@ public class Employee {
     public void prePersist() {
         if (active == null) {
             active = true;
+        }
+        if (present == null) {
+            present = true;
         }
     }
 }
