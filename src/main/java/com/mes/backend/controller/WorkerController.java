@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,6 +53,12 @@ public class WorkerController {
     @PutMapping("/{id}")
     public Employee update(@PathVariable Long id, @RequestBody WorkerUpdateRequest request) {
         return workerService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        workerService.delete(id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/me/password")

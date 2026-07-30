@@ -4,6 +4,7 @@ package com.mes.backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,20 @@ public class ProductService {
     @PreAuthorize("hasAuthority('관리자')")
     @Transactional
     public Product create(ProductCreateRequest request) {
+        Optional<Product> inactiveProduct = productRepo.findInactiveByProductCode(request.getProductCode());
+        if (inactiveProduct.isPresent()) {
+            Product product = inactiveProduct.get();
+            product.setProductName(request.getProductName());
+            product.setVoltage(request.getVoltage());
+            product.setCapacity(request.getCapacity());
+            product.setUnit(request.getUnit());
+            product.setActive(true);
+            Product savedProduct = productRepo.save(product);
+            ensureBom(savedProduct);
+            populateBomId(savedProduct);
+            return savedProduct;
+        }
+
         Product product = productRepo.save(Product.builder()
                 .productCode(request.getProductCode())
                 .productName(request.getProductName())
@@ -57,6 +72,12 @@ public class ProductService {
                 .build());
         bomRepo.save(Bom.builder().product(product).build());
         return product;
+    }
+
+    private void ensureBom(Product product) {
+        if (bomRepo.findByProduct_Id(product.getId()).isEmpty()) {
+            bomRepo.save(Bom.builder().product(product).build());
+        }
     }
 
     /* product_code는 잠금 - 여기서 건드리지 않음 */

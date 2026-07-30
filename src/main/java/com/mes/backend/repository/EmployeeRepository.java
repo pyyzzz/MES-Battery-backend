@@ -20,6 +20,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             where (:hireDateFrom is null or e.hireDate >= :hireDateFrom)
               and (:hireDateTo is null or e.hireDate <= :hireDateTo)
               and (:role is null or e.role = :role)
+              and (e.active is null or e.active = true)
             order by e.hireDate desc, e.id desc
             """)
     List<Employee> search(@Param("hireDateFrom") LocalDate hireDateFrom,

@@ -64,6 +64,14 @@ public class WorkerService {
         return employeeRepo.save(employee);
     }
 
+    @PreAuthorize("hasAuthority('관리자')")
+    @Transactional
+    public void delete(Long id) {
+        Employee employee = getById(id);
+        employee.setActive(false);
+        employeeRepo.save(employee);
+    }
+
     @Transactional
     public void changePassword(String username, PasswordChangeRequest request) {
         if (!request.getNewPassword().equals(request.getNewPasswordConfirm())) {
