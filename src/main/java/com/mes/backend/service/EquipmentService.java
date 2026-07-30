@@ -41,13 +41,25 @@ public class EquipmentService {
     @Transactional
     public Equipment create(EquipmentCreateRequest request) {
         Process process = findProcess(request.getProcessId());
+        Optional<Equipment> deletedEquipment = equipmentRepo.findDeletedByProcessId(process.getId());
+        if (deletedEquipment.isPresent()) {
+            Equipment equipment = deletedEquipment.get();
+            equipment.setProcess(process);
+            equipment.setEquipmentCode(request.getEquipmentCode());
+            equipment.setEquipmentName(request.getEquipmentName());
+            equipment.setEquipmentStatus(request.getEquipmentStatus());
+            equipment.setActive(activeOrDefault(request.getActive()));
+            equipment.setStatusMessage(request.getStatusMessage());
+            return equipmentRepo.save(equipment);
+        }
+
         ensureProcessAvailable(process, null);
         return equipmentRepo.save(Equipment.builder()
                 .process(process)
                 .equipmentCode(request.getEquipmentCode())
                 .equipmentName(request.getEquipmentName())
                 .equipmentStatus(request.getEquipmentStatus())
-                .active(request.getActive())
+                .active(activeOrDefault(request.getActive()))
                 .statusMessage(request.getStatusMessage())
                 .build());
     }
@@ -65,6 +77,16 @@ public class EquipmentService {
         equipment.setActive(request.getActive());
         equipment.setStatusMessage(request.getStatusMessage());
         return equipmentRepo.save(equipment);
+    }
+
+    @PreAuthorize("hasAuthority('관리자')")
+    @Transactional
+    public void delete(Long id) {
+        Equipment equipment = getById(id);
+        equipment.setActive(false);
+        equipment.setEquipmentStatus("삭제");
+        equipment.setStatusMessage("삭제된 설비입니다.");
+        equipmentRepo.save(equipment);
     }
 
     /* 환경센서(온도0x10/습도0x11/설비전원전압0x12) 리포트 - 최신값 덮어쓰기, QualityInspection/BOM차감/판정 로직과 무관 */
@@ -96,6 +118,10 @@ public class EquipmentService {
     private Process findProcess(Long processId) {
         return processRepo.findById(processId)
                 .orElseThrow(() -> new RuntimeException("공정을 찾을 수 없습니다. ID: " + processId));
+    }
+
+    private boolean activeOrDefault(Boolean active) {
+        return active == null || active;
     }
 
     /* 1:1 관계라 이미 다른 설비가 배정된 공정은 선택 불가 (수정 시 자기 자신은 제외) */

@@ -10,6 +10,7 @@ public class ProcessUpdateRequest {
     private String processName;
     private Integer sequenceNo;
     private Long managerEmployeeId;
+    private String equipmentCode;
     private String description;
     private String processStatus;
 }

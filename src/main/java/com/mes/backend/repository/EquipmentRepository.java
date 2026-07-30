@@ -12,13 +12,33 @@ import com.mes.backend.entity.Equipment;
 
 public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     Optional<Equipment> findByEquipmentCode(String equipmentCode);
-    Optional<Equipment> findByProcess_Id(Long processId);
-    Optional<Equipment> findByEquipmentPort(Integer equipmentPort);
+
+    @Query("""
+            select e from Equipment e
+            where e.process.id = :processId
+              and (e.equipmentStatus is null or e.equipmentStatus <> '삭제')
+            """)
+    Optional<Equipment> findByProcess_Id(@Param("processId") Long processId);
+
+    @Query("""
+            select e from Equipment e
+            where e.process.id = :processId
+              and e.equipmentStatus = '삭제'
+            """)
+    Optional<Equipment> findDeletedByProcessId(@Param("processId") Long processId);
+
+    @Query("""
+            select e from Equipment e
+            where e.equipmentPort = :equipmentPort
+              and (e.equipmentStatus is null or e.equipmentStatus <> '삭제')
+            """)
+    Optional<Equipment> findByEquipmentPort(@Param("equipmentPort") Integer equipmentPort);
 
     @Query("""
             select e from Equipment e
             where (:equipmentName is null or e.equipmentName like %:equipmentName%)
               and (:equipmentStatus is null or e.equipmentStatus = :equipmentStatus)
+              and (e.equipmentStatus is null or e.equipmentStatus <> '삭제')
             order by e.id asc
             """)
     List<Equipment> search(@Param("equipmentName") String equipmentName, @Param("equipmentStatus") String equipmentStatus);

@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.mes.backend.dto.ProcessCreateRequest;
 import com.mes.backend.dto.ProcessUpdateRequest;
 import com.mes.backend.entity.Employee;
+import com.mes.backend.entity.Equipment;
 import com.mes.backend.entity.Process;
 import com.mes.backend.repository.EmployeeRepository;
+import com.mes.backend.repository.EquipmentRepository;
 import com.mes.backend.repository.ProcessRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class ProcessService {
 
     private final ProcessRepository processRepo;
     private final EmployeeRepository employeeRepo;
+    private final EquipmentRepository equipmentRepo;
 
     public List<Process> search(String processName, String processStatus) {
         return processRepo.search(processName, processStatus);
@@ -36,7 +39,7 @@ public class ProcessService {
     @Transactional
     public Process create(ProcessCreateRequest request) {
         Employee manager = findEmployee(request.getManagerEmployeeId());
-        return processRepo.save(Process.builder()
+        Process process = processRepo.save(Process.builder()
                 .processCode(request.getProcessCode())
                 .processName(request.getProcessName())
                 .sequenceNo(request.getSequenceNo())
@@ -44,6 +47,8 @@ public class ProcessService {
                 .description(request.getDescription())
                 .processStatus(request.getProcessStatus() != null ? request.getProcessStatus() : "사용")
                 .build());
+        assignEquipment(process, request.getEquipmentCode());
+        return process;
     }
 
     /* process_code는 잠금 - 여기서 건드리지 않음.
@@ -60,7 +65,9 @@ public class ProcessService {
         if (request.getProcessStatus() != null) {
             process.setProcessStatus(request.getProcessStatus());
         }
-        return processRepo.save(process);
+        Process saved = processRepo.save(process);
+        assignEquipment(saved, request.getEquipmentCode());
+        return saved;
     }
 
     @PreAuthorize("hasAuthority('관리자')")
@@ -74,5 +81,25 @@ public class ProcessService {
     private Employee findEmployee(Long employeeId) {
         return employeeRepo.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("담당자를 찾을 수 없습니다. ID: " + employeeId));
+    }
+
+    private void assignEquipment(Process process, String equipmentCode) {
+        if (equipmentCode == null || equipmentCode.isBlank() || "설비 선택 (없음)".equals(equipmentCode)) {
+            return;
+        }
+
+        Equipment equipment = equipmentRepo.findByEquipmentCode(equipmentCode)
+                .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다. code: " + equipmentCode));
+        Process previousProcess = equipment.getProcess();
+        equipmentRepo.findByProcess_Id(process.getId())
+                .filter(currentEquipment -> !currentEquipment.getId().equals(equipment.getId()))
+                .ifPresent(currentEquipment -> {
+                    if (previousProcess != null) {
+                        currentEquipment.setProcess(previousProcess);
+                        equipmentRepo.save(currentEquipment);
+                    }
+                });
+        equipment.setProcess(process);
+        equipmentRepo.save(equipment);
     }
 }

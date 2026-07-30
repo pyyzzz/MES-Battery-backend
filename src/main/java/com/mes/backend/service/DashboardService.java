@@ -75,7 +75,7 @@ public class DashboardService {
         List<QualityInspection> todayInspections = inspections.stream()
                 .filter(inspection -> isToday(inspection.getInspectionAt(), today))
                 .toList();
-        List<Equipment> equipment = equipmentRepository.findAll();
+        List<Equipment> equipment = equipmentRepository.search(null, null);
         List<Employee> employees = employeeRepository.findAll();
 
         int todayProductionQty = lots.stream()

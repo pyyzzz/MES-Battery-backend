@@ -11,6 +11,7 @@ public class ProcessCreateRequest {
     private String processName;
     private Integer sequenceNo;
     private Long managerEmployeeId;
+    private String equipmentCode;
     private String description;
     private String processStatus;
 }

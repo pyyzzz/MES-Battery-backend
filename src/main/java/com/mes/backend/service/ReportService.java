@@ -89,7 +89,7 @@ public class ReportService {
                 .actualQty(actualQty)
                 .goodQty(goodQty)
                 .defectQty(defectQty)
-                .achievementRate(rate(actualQty, planQty))
+                .achievementRate(rate(goodQty, planQty))
                 .yieldRate(rate(goodQty, goodQty + defectQty))
                 .build();
     }
@@ -117,6 +117,7 @@ public class ReportService {
                         .date(CHART_DATE_FORMAT.format(LocalDate.parse(entry.getKey())))
                         .plan(entry.getValue().stream().mapToInt(ReportLotDto::getPlanQty).sum())
                         .actual(entry.getValue().stream().mapToInt(ReportLotDto::getActualQty).sum())
+                        .good(entry.getValue().stream().mapToInt(ReportLotDto::getGoodQty).sum())
                         .build())
                 .toList();
     }
