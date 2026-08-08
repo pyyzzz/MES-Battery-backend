@@ -1,11 +1,13 @@
 package com.mes.backend.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.mes.backend.entity.Bom;
 
 public interface BomRepository extends JpaRepository<Bom, Long> {
-    List<Bom> findAllByProductCode(String productCode);
+    List<Bom> findAllByProduct_ProductCode(String productCode);
+    Optional<Bom> findByProduct_Id(Long productId);
 }
